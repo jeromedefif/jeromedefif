@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Správa odrůd vína</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .admin-panel {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .wine-list {
+            margin: 20px 0;
+        }
+        .wine-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            background-color: #fff;
+        }
+        .wine-item:hover {
+            background-color: #f8f8f8;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .add-btn {
+            background-color: #722f37;
+            color: white;
+        }
+        .save-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .edit-btn {
+            background-color: #ffc107;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .move-btn {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 12px;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+        }
+        .status-message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .preview-btn {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .edit-mode {
+            background-color: #fff3cd;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-panel">
+        <div class="header">
+            <h1>Správa odrůd vína</h1>
+            <div>
+                <button class="preview-btn" onclick="openPreview()">Zobrazit objednávkový formulář</button>
+            </div>
+        </div>
+
+        <div>
+            <button class="add-btn" onclick="addNewWine()">Přidat novou odrůdu</button>
+            <button class="save-btn" onclick="saveChanges()">Uložit změny</button>
+        </div>
+
+        <div class="wine-list" id="wineList">
+            <!-- Seznam vín bude generován JavaScriptem -->
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+
+    <script>
+        // Výchozí data pro demonstraci
+        const defaultWines = [
+            "Frankovka", "Modrý Portugal", "Svatovavřinecké", "Rulandské modré",
+            "Veltlínské zelené", "Muller Thurgau", "Ryzlink vlašský", "Chardonnay",
+            "Sauvignon", "Tramín červený", "Pálava", "Rulandské šedé",
+            "Zweigeltrebe rosé", "Cabernet Sauvignon", "Merlot", "Neuburské"
+        ];
+
+        // Načtení dat z localStorage nebo použití výchozích dat
+        let wines = JSON.parse(localStorage.getItem('wines')) || defaultWines;
+
+        function renderWineList() {
+            const wineList = document.getElementById('wineList');
+            wineList.innerHTML = '';
+
+            wines.forEach((wine, index) => {
+                const wineItem = document.createElement('div');
+                wineItem.className = 'wine-item';
+                wineItem.innerHTML = `
+                    <span class="wine-name">${wine}</span>
+                    <div class="controls">
+                        <button class="move-btn" onclick="moveWine(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+                        <button class="move-btn" onclick="moveWine(${index}, 1)" ${index === wines.length - 1 ? 'disabled' : ''}>↓</button>
+                        <button class="edit-btn" onclick="editWine(${index})">Upravit</button>
+                        <button class="delete-btn" onclick="deleteWine(${index})">Smazat</button>
+                    </div>
+                `;
+                wineList.appendChild(wineItem);
+            });
+        }
+
+        function addNewWine() {
+            const wineList = document.getElementById('wineList');
+            const newWineItem = document.createElement('div');
+            newWineItem.className = 'wine-item edit-mode';
+            newWineItem.innerHTML = `
+                <input type="text" class="new-wine-input" placeholder="Název odrůdy">
+                <div class="controls">
+                    <button class="save-btn" onclick="saveNewWine(this)">Uložit</button>
+                    <button class="delete-btn" onclick="cancelAdd(this)">Zrušit</button>
+                </div>
+            `;
+            wineList.insertBefore(newWineItem, wineList.firstChild);
+            newWineItem.querySelector('input').focus();
+        }
+
+        function saveNewWine(button) {
+            const wineItem = button.closest('.wine-item');
+            const input = wineItem.querySelector('input');
+            const wineName = input.value.trim();
+
+            if (wineName) {
+                wines.unshift(wineName);
+                saveChanges();
+                renderWineList();
+                showStatus('Odrůda byla přidána', 'success');
+            } else {
+                showStatus('Zadejte název odrůdy', 'error');
+            }
+        }
+
+        function editWine(index) {
+            const wineItem = document.querySelectorAll('.wine-item')[index];
+            const wineName = wines[index];
+            wineItem.classList.add('edit-mode');
+            wineItem.innerHTML = `
+                <input type="text" value="${wineName}" class="edit-wine-input">
+                <div class="controls">
+                    <button class="save-btn" onclick="saveEdit(${index}, this)">Uložit</button>
+                    <button class="delete-btn" onclick="cancelEdit(${index})">Zrušit</button>
+                </div>
+            `;
+            wineItem.querySelector('input').focus();
+        }
+
+        function saveEdit(index, button) {
+            const wineItem = button.closest('.wine-item');
+            const input = wineItem.querySelector('input');
+            const newName = input.value.trim();
+
+            if (newName) {
+                wines[index] = newName;
+                saveChanges();
+                renderWineList();
+                showStatus('Změny byly uloženy', 'success');
+            } else {
+                showStatus('Název odrůdy nemůže být prázdný', 'error');
+            }
+        }
+
+        function cancelEdit(index) {
+            renderWineList();
+        }
+
+        function cancelAdd(button) {
+            button.closest('.wine-item').remove();
+        }
+
+        function deleteWine(index) {
+            if (confirm('Opravdu chcete smazat tuto odrůdu?')) {
+                wines.splice(index, 1);
+                saveChanges();
+                renderWineList();
+                showStatus('Odrůda byla smazána', 'success');
+            }
+        }
+
+        function moveWine(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex >= 0 && newIndex < wines.length) {
+                [wines[index], wines[newIndex]] = [wines[newIndex], wines[index]];
+                saveChanges();
+                renderWineList();
+                showStatus('Pořadí bylo změněno', 'success');
+            }
+        }
+
+        function saveChanges() {
+            localStorage.setItem('wines', JSON.stringify(wines));
+        }
+
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = `status-message ${type}`;
+            statusElement.style.display = 'block';
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+
+        function openPreview() {
+            // Otevře objednávkový formulář v novém okně/záložce
+            window.open('index.html', '_blank');
+        }
+
+        // Inicializace seznamu
+        renderWineList();
+    </script>
+</body>
+</html>
