@@ -159,7 +159,7 @@
 <body>
     <div class="order-form">
         <h1>Objednávka vína</h1>
-
+        
         <form id="wineOrder">
             <div class="customer-info">
                 <h2>Údaje zákazníka</h2>
@@ -168,7 +168,7 @@
                     <div class="error-message">Vyplňte prosím jméno</div>
                 </div>
                 <div class="field-group">
-                    <input type="tel" id="customerPhone" placeholder="Telefon"
+                    <input type="tel" id="customerPhone" placeholder="Telefon" 
                            pattern="[0-9+ ]{9,}" required>
                     <div class="error-message">Zadejte platné telefonní číslo</div>
                 </div>
@@ -203,7 +203,8 @@
     </div>
 
     <script>
-        const wines = [
+        // Výchozí seznam vín
+        const defaultWines = [
             "Frankovka", "Modrý Portugal", "Svatovavřinecké", "Rulandské modré",
             "Veltlínské zelené", "Muller Thurgau", "Ryzlink vlašský", "Chardonnay",
             "Sauvignon", "Tramín červený", "Pálava", "Rulandské šedé",
@@ -211,36 +212,57 @@
         ];
 
         const volumes = [5, 10, 20, 30, 50];
-        const wineList = document.querySelector('.wine-list');
         const cart = {};
+        let wines = [];
 
-        wines.forEach(wine => {
-            const wineItem = document.createElement('div');
-            wineItem.className = 'wine-item';
-
-            const wineName = document.createElement('div');
-            wineName.textContent = wine;
-            wineItem.appendChild(wineName);
-
-            volumes.forEach(volume => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'volume-btn';
-                button.textContent = `${volume}l`;
-                button.addEventListener('click', () => addToCart(wine, volume, button));
-                wineItem.appendChild(button);
+        function loadWines() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const winesParam = urlParams.get('wines');
+            
+            if (winesParam) {
+                try {
+                    wines = JSON.parse(decodeURIComponent(winesParam));
+                } catch (e) {
+                    console.error('Chyba při načítání vín z URL:', e);
+                    wines = defaultWines;
+                }
+            } else {
+                wines = defaultWines;
+            }
+            
+            const wineList = document.querySelector('.wine-list');
+            const header = wineList.querySelector('.wine-header');
+            wineList.innerHTML = '';
+            wineList.appendChild(header);
+            
+            wines.forEach(wine => {
+                const wineItem = document.createElement('div');
+                wineItem.className = 'wine-item';
+                
+                const wineName = document.createElement('div');
+                wineName.textContent = wine;
+                wineItem.appendChild(wineName);
+                
+                volumes.forEach(volume => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'volume-btn';
+                    button.textContent = `${volume}l`;
+                    button.addEventListener('click', () => addToCart(wine, volume, button));
+                    wineItem.appendChild(button);
+                });
+                
+                wineList.appendChild(wineItem);
             });
-
-            wineList.appendChild(wineItem);
-        });
+        }
 
         function addToCart(wine, volume, button) {
             const cartKey = `${wine}-${volume}`;
-
+            
             if (!cart[cartKey]) {
                 cart[cartKey] = { wine, volume, quantity: 0 };
             }
-
+            
             cart[cartKey].quantity += 1;
             updateButtonQuantity(button, cart[cartKey].quantity);
             updateCart();
@@ -251,7 +273,7 @@
             if (oldQuantity) {
                 oldQuantity.remove();
             }
-
+            
             if (quantity > 0) {
                 const quantityElement = document.createElement('span');
                 quantityElement.className = 'quantity';
@@ -266,7 +288,7 @@
         function updateCart() {
             const cartItems = document.getElementById('cartItems');
             const totalLiters = calculateTotalLiters();
-
+            
             if (Object.keys(cart).length === 0) {
                 cartItems.innerHTML = '<div class="cart-empty">Košík je prázdný</div>';
             } else {
@@ -283,8 +305,8 @@
                     }
                 });
             }
-
-            document.getElementById('submitButton').textContent =
+            
+            document.getElementById('submitButton').textContent = 
                 `Odeslat objednávku (${totalLiters} litrů)`;
         }
 
@@ -297,7 +319,7 @@
         function removeFromCart(cartKey) {
             const [wine, volume] = cartKey.split('-');
             const button = Array.from(document.querySelectorAll('.volume-btn'))
-                .find(btn => btn.textContent.startsWith(`${volume}l`) &&
+                .find(btn => btn.textContent.startsWith(`${volume}l`) && 
                            btn.parentElement.firstChild.textContent === wine);
             if (button) {
                 updateButtonQuantity(button, 0);
@@ -309,14 +331,14 @@
         function formatOrderToEmail(cartItems, customerInfo, totalLiters) {
             const date = new Date().toLocaleDateString('cs-CZ');
             const time = new Date().toLocaleTimeString('cs-CZ');
-
+            
             let emailBody = `Objednávka vína - ${date} ${time}\n\n`;
-
+            
             emailBody += `Zákazník:\n`;
             emailBody += `Jméno: ${customerInfo.name}\n`;
             emailBody += `Telefon: ${customerInfo.phone}\n`;
             emailBody += `Email: ${customerInfo.email}\n\n`;
-
+            
             emailBody += `Objednané položky:\n`;
             emailBody += `------------------\n`;
             Object.values(cartItems).forEach(item => {
@@ -324,40 +346,39 @@
                     emailBody += `${item.wine}: ${item.volume}l (${item.quantity} ks) = ${item.volume * item.quantity}l\n`;
                 }
             });
-
+            
             emailBody += `\nCelkem litrů: ${totalLiters}`;
-
+            
             return emailBody;
         }
 
         document.getElementById('wineOrder').addEventListener('submit', function(e) {
             e.preventDefault();
-
+            
             if (Object.keys(cart).length === 0) {
                 alert('Košík je prázdný. Prosím vyberte nějaké víno.');
                 return;
             }
-
+            
             const customerInfo = {
                 name: document.getElementById('customerName').value,
                 phone: document.getElementById('customerPhone').value,
                 email: document.getElementById('customerEmail').value
             };
-
+            
             if (!customerInfo.name || !customerInfo.phone || !customerInfo.email) {
                 alert('Prosím vyplňte všechny údaje o zákazníkovi.');
                 return;
             }
-
+            
             const totalLiters = calculateTotalLiters();
             const emailBody = formatOrderToEmail(cart, customerInfo, totalLiters);
             const emailSubject = `Objednávka vína - ${customerInfo.name}`;
-
-            // Zde nastavte skutečnou emailovou adresu pro příjem objednávek
+            
             const mailtoLink = `mailto:objednavky@vinarstvi.cz?cc=${encodeURIComponent(customerInfo.email)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
-
+            
             window.location.href = mailtoLink;
-
+            
             if (confirm('Chcete vyčistit formulář pro novou objednávku?')) {
                 Object.keys(cart).forEach(key => {
                     removeFromCart(key);
@@ -366,6 +387,9 @@
                 updateCart();
             }
         });
+
+        // Inicializace
+        loadWines();
     </script>
 </body>
 </html>
